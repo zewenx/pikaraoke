@@ -1,20 +1,17 @@
-import glob
+
 import json
 import logging
 import os
 import random
 import socket
 import subprocess
-import sys
-import threading
 import time
-from io import BytesIO
+
 from subprocess import check_output
 from pathlib import Path
 
 import pygame
 import qrcode
-from unidecode import unidecode
 
 from lib import omxclient, vlcclient
 from lib.get_platform import get_platform
@@ -420,7 +417,7 @@ class Karaoke:
     def get_search_results(self, textToSearch):
         logging.info("Searching YouTube for: " + textToSearch)
         num_results = 10
-        yt_search = 'ytsearch%d:"%s"' % (num_results, unidecode(textToSearch))
+        yt_search = 'ytsearch%d:"%s"' % (num_results, textToSearch)
         cmd = [self.youtubedl_path, "-j", "--no-playlist", "--flat-playlist", yt_search]
         logging.debug("Youtube-dl search command: " + " ".join(cmd))
         try:
