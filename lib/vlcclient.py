@@ -228,10 +228,14 @@ class VLCClient:
             )
             return
 
+    def seek(self, val=0):
+        return self.command(f"seek&val={val}")
+
     def restart(self):
-        logging.info(self.command("seek&val=0"))
+        seek = self.seek(0)
+        logging.info(seek)
         self.play()
-        return self.command("seek&val=0")
+        return seek
 
     def vol_up(self):
         return self.command("volume&val=%d" % (self.get_volume() + self.volume_offset))
@@ -271,6 +275,9 @@ class VLCClient:
         status = self.get_status()
         return int(status.find("volume").text)
 
+    def get_seek(self):
+        status = self.get_status()
+        return int(status.find("time").text)
     def get_status(self):
         url = self.http_endpoint
         request = requests.get(url, auth=("", self.http_password))
