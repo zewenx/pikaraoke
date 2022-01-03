@@ -10,6 +10,7 @@ import time
 import xml.etree.ElementTree as ET
 import zipfile
 from threading import Timer
+from constants import *
 
 import requests
 
