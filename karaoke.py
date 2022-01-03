@@ -456,26 +456,64 @@ class Karaoke:
             rc = subprocess.call(cmd)  # retry once. Seems like this can be flaky
         if rc == 0:
             logging.debug("Song successfully downloaded: " + video_url)
-            self.get_available_songs()
-            if enqueue:
-                y = self.get_youtube_id_from_url(video_url)
-                s = self.find_song_by_youtube_id(y)
-                if s:
-                    self.enqueue(s, user)
-                else:
-                    logging.error("Error queueing song: " + video_url)
+
+            y = self.get_youtube_id_from_url(video_url)
+            s = self.find_song_by_youtube_id(y)
+            item = self.post_process_video(s)
+            if enqueue and item:
+                self.enqueue(item, user)
+                self.get_available_songs()
+            else:
+                logging.error("Error queueing song: " + video_url)
         else:
             logging.error("Error downloading song: " + video_url)
         return rc
+
+    def post_process_video(self, file_path):
+        base, ext = os.path.splitext(file_path)
+        accompaniment_path = base + ACCOMPANIMENT_SUFFIX + ext
+        vocal_path = base + VOCAL_SUFFIX + ext
+
+        for item in ['karaoke', '伴奏', 'accompaniment']:
+            if item in os.path.basename(file_path.lower()):
+                os.rename(file_path, accompaniment_path)
+                return accompaniment_path
+
+        tmp_path = os.path.expanduser(TMP_DIR)
+        if not tmp_path.endswith("/"):
+            tmp_path += "/"
+        if not os.path.exists(tmp_path):
+            print("Creating tmp path: " + tmp_path)
+            os.makedirs(tmp_path)
+
+        # Split vocal and accompaniment
+        # separate(files=[Path(file_path)],output_path=Path(tmp_dir), filename_format="{filename}_{instrument}.{codec}")
+        cmd = ["spleeter", "separate", "-o", tmp_path, "-f", "{instrument}.{codec}", file_path]
+        rc = subprocess.call(cmd)
+        if rc == 0:
+            # Split video and audio
+            s_cmd = ["ffmpeg", "-i", file_path, "-an", "-c", "copy", f"{tmp_path}/video.mp4"]
+            split_rs = subprocess.call(s_cmd)
+
+            # Merge video and accompaniment
+            m_cmd = ["ffmpeg", "-i", f"{tmp_path}/video.mp4", "-i", f"{tmp_path}/accompaniment.wav", "-c:v", "copy", "-c:a", "aac", accompaniment_path]
+            merge_rs = subprocess.call(m_cmd)
+
+            os.rename(file_path, vocal_path)
+
+            P = Path(tmp_path)
+            for file in P.rglob('*.*'):
+                os.remove(file)
+        return accompaniment_path
 
     def get_available_songs(self):
         logging.info("Fetching available songs in: " + self.download_path)
         types = ['.mp4', '.mp3', '.zip', '.mkv', '.avi', '.webm', '.mov']
         files_grabbed = []
-        P=Path(self.download_path)
+        P = Path(self.download_path)
         for file in P.rglob('*.*'):
             base, ext = os.path.splitext(file.as_posix())
-            if ext.lower() in types:
+            if ext.lower() in types and base.endswith(ACCOMPANIMENT_SUFFIX):
                 if os.path.isfile(file.as_posix()):
                     logging.debug("adding song: " + file.name)
                     files_grabbed.append(file.as_posix())
@@ -512,16 +550,21 @@ class Karaoke:
         return rc
 
     def find_song_by_youtube_id(self, youtube_id):
-        for each in self.available_songs:
-            if youtube_id in each:
-                return each
-        logging.error("No available song found with youtube id: " + youtube_id)
+
+        P = Path(self.download_path)
+        for file in P.rglob('*.*'):
+            if os.path.isfile(file.as_posix()) and youtube_id in file.as_posix():
+                return file.as_posix()
+
+        logging.error("New downloaded song not found: " + youtube_id)
         return None
 
     def get_youtube_id_from_url(self, url):
-        s = url.split("watch?v=")
-        if len(s) == 2:
-            return s[1]
+        query = urlparse(url).query
+        query_dict = dict(parse_qsl(query))
+        youtube_id = query_dict['v']
+        if youtube_id:
+            return youtube_id
         else:
             logging.error("Error parsing youtube id from url: " + url)
             return None

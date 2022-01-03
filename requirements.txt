@@ -13,3 +13,4 @@ psutil
 unidecode
 requests
 flask-paginate==2021.10.29
+spleeter
