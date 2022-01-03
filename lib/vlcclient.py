@@ -73,9 +73,7 @@ class VLCClient:
             "--mouse-hide-timeout",
             "0",
             "--video-on-top",
-            "--no-video-title",
-            "--mouse-hide-timeout",
-            "0",
+            "--no-video-title"
         ]
         if self.platform == "osx":
             self.cmd_base += [
