@@ -602,6 +602,7 @@ def get_default_dl_dir(platform):
 
 
 if __name__ == "__main__":
+    os.environ["MODEL_PATH"] = f"{os.path.dirname(os.path.abspath(__file__))}/pretrained_models"
 
     platform = get_platform()
     default_port = 5000
