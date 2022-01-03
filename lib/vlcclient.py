@@ -159,6 +159,8 @@ class VLCClient:
             self.process = subprocess.Popen(
                 command, shell=(self.platform == "windows"), stdin=subprocess.PIPE
             )
+            time.sleep(1)
+            self.add_song(file_path.replace(ACCOMPANIMENT_SUFFIX, VOCAL_SUFFIX))
         except Exception as e:
             logging.error("Playing file failed: " + str(e))
 
@@ -228,6 +230,8 @@ class VLCClient:
             )
             return
 
+    def add_song(self, file_url):
+        return self.command(f"in_enqueue&input={file_url}")
     def seek(self, val=0):
         return self.command(f"seek&val={val}")
 
