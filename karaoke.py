@@ -16,13 +16,13 @@ import qrcode
 
 from lib import omxclient, vlcclient
 from lib.get_platform import get_platform
+from urllib.parse import urlparse, parse_qsl
 
 if get_platform() != "windows":
     from signal import SIGALRM, alarm, signal
 
 
 class Karaoke:
-
     raspi_wifi_config_ip = "10.0.0.1"
     raspi_wifi_conf_file = "/etc/raspiwifi/raspiwifi.conf"
     raspi_wifi_config_installed = os.path.exists(raspi_wifi_conf_file)
@@ -40,28 +40,29 @@ class Karaoke:
     volume_offset = 0
     loop_interval = 500  # in milliseconds
     default_logo_path = os.path.join(base_path, "logo.png")
+    playing_type = ACCOMPANIMENT_SUFFIX
 
     def __init__(
-        self,
-        port=5000,
-        download_path="/usr/lib/pikaraoke/songs",
-        hide_ip=False,
-        hide_raspiwifi_instructions=False,
-        hide_splash_screen=False,
-        omxplayer_adev="both",
-        dual_screen=False,
-        high_quality=False,
-        volume=0,
-        log_level=logging.DEBUG,
-        splash_delay=2,
-        youtubedl_path="/usr/local/bin/youtube-dl",
-        omxplayer_path=None,
-        use_omxplayer=False,
-        use_vlc=True,
-        vlc_path=None,
-        vlc_port=None,
-        logo_path=None,
-        show_overlay=False
+            self,
+            port=5000,
+            download_path="/usr/lib/pikaraoke/songs",
+            hide_ip=False,
+            hide_raspiwifi_instructions=False,
+            hide_splash_screen=False,
+            omxplayer_adev="both",
+            dual_screen=False,
+            high_quality=False,
+            volume=0,
+            log_level=logging.DEBUG,
+            splash_delay=2,
+            youtubedl_path="/usr/local/bin/youtube-dl",
+            omxplayer_path=None,
+            use_omxplayer=False,
+            use_vlc=True,
+            vlc_path=None,
+            vlc_port=None,
+            logo_path=None,
+            show_overlay=False
     ):
 
         # override with supplied constructor args if provided
@@ -172,7 +173,7 @@ class Karaoke:
         if self.use_vlc:
             if (self.show_overlay):
                 self.vlcclient = vlcclient.VLCClient(port=self.vlc_port, path=self.vlc_path, qrcode=self.qr_code_path, url=self.url)
-            else: 
+            else:
                 self.vlcclient = vlcclient.VLCClient(port=self.vlc_port, path=self.vlc_path)
         else:
             self.omxclient = omxclient.OMXClient(path=self.omxplayer_path, adev=self.omxplayer_adev, dual_screen=self.dual_screen, volume_offset=self.volume_offset)
@@ -181,7 +182,6 @@ class Karaoke:
             self.initialize_screen()
             self.render_splash_screen()
 
- 
     # Other ip-getting methods are unreliable and sometimes return 127.0.0.1
     # https://stackoverflow.com/a/28950776
     def get_ip(self):
@@ -199,7 +199,7 @@ class Karaoke:
     def get_raspi_wifi_conf_vals(self):
         """Extract values from the RaspiWiFi configuration file."""
         f = open(self.raspi_wifi_conf_file, "r")
-        
+
         # Define default values.
         #
         # References: 
@@ -209,7 +209,7 @@ class Karaoke:
         server_port = "80"
         ssid_prefix = "RaspiWiFi Setup"
         ssl_enabled = "0"
-        
+
         # Override the default values according to the configuration file.
         for line in f.readlines():
             if "server_port=" in line:
@@ -363,8 +363,8 @@ class Karaoke:
                     self.screen.blit(text, (p_image.get_width() + 35, blitY))
 
             if not self.hide_raspiwifi_instructions and (
-                self.raspi_wifi_config_installed
-                and self.raspi_wifi_config_ip in self.url
+                    self.raspi_wifi_config_installed
+                    and self.raspi_wifi_config_ip in self.url
             ):
                 (server_port, ssid_prefix, ssl_enabled) = self.get_raspi_wifi_conf_vals()
 
@@ -378,8 +378,8 @@ class Karaoke:
                 )
                 text3 = self.font.render(
                     "Then point its browser to: '%s://%s%s' and follow the instructions."
-                    % ("https" if ssl_enabled == "1" else "http", 
-                       self.raspi_wifi_config_ip, 
+                    % ("https" if ssl_enabled == "1" else "http",
+                       self.raspi_wifi_config_ip,
                        ":%s" % server_port if server_port != "80" else ""),
                     True,
                     (255, 255, 255),
@@ -402,7 +402,7 @@ class Karaoke:
                 text = font_next_song.render(
                     "Up next: %s" % (unidecode(next_song)), True, (0, 128, 0)
                 )
-                up_next = font_next_song.render("Up next:  " , True, (255, 255, 0))
+                up_next = font_next_song.render("Up next:  ", True, (255, 255, 0))
                 font_user_name = pygame.font.SysFont(pygame.font.get_default_font(), 50)
                 user_name = font_user_name.render("Added by: %s " % next_user, True, (255, 120, 0))
                 x = self.width - text.get_width() - 10
@@ -525,10 +525,10 @@ class Karaoke:
         os.remove(song_path)
         ext = os.path.splitext(song_path)
         # if we have an associated cdg file, delete that too
-        cdg_file = song_path.replace(ext[1],".cdg")
+        cdg_file = song_path.replace(ext[1], ".cdg")
         if (os.path.exists(cdg_file)):
             os.remove(cdg_file)
-        
+
         self.get_available_songs()
 
     def rename(self, song_path, new_name):
@@ -538,7 +538,7 @@ class Karaoke:
             new_file_name = new_name + ext[1]
         os.rename(song_path, self.download_path + new_file_name)
         # if we have an associated cdg file, rename that too
-        cdg_file = song_path.replace(ext[1],".cdg")
+        cdg_file = song_path.replace(ext[1], ".cdg")
         if (os.path.exists(cdg_file)):
             os.rename(cdg_file, self.download_path + new_name + ".cdg")
         self.get_available_songs()
@@ -625,7 +625,7 @@ class Karaoke:
 
     def enqueue(self, song_path, user="Pikaraoke"):
         if (self.is_song_in_queue(song_path)):
-            logging.warn("Song is already in queue, will not add: " + song_path)   
+            logging.warn("Song is already in queue, will not add: " + song_path)
             return False
         else:
             logging.info("'%s' is adding song to queue: %s" % (user, song_path))
@@ -789,6 +789,7 @@ class Karaoke:
             pygame.display.update()
             pygame.time.wait(self.loop_interval)
 
+
     # Use this to reset the screen in case it loses focus
     # This seems to occur in windows after playing a video
     def pygame_reset_screen(self):
@@ -825,7 +826,7 @@ class Karaoke:
                             self.handle_run_loop()
                             i += self.loop_interval
                         self.play_file(self.queue[0]["file"])
-                        self.now_playing_user=self.queue[0]["user"]
+                        self.now_playing_user = self.queue[0]["user"]
                         self.queue.pop(0)
                 elif not pygame.display.get_active() and not self.is_file_playing():
                     self.pygame_reset_screen()
