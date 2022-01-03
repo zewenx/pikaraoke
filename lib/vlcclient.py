@@ -282,6 +282,11 @@ class VLCClient:
     def get_seek(self):
         status = self.get_status()
         return int(status.find("time").text)
+
+    def get_length(self):
+        status = self.get_status()
+        return int(status.find("length").text)
+
     def get_status(self):
         url = self.http_endpoint
         request = requests.get(url, auth=("", self.http_password))
@@ -289,23 +294,23 @@ class VLCClient:
 
     def run(self):
         try:
-            while True:
-                pass
+            time.sleep(1)
+            length = self.get_length()
+            seek = self.get_seek()
+            if length and seek/length > 0.98:
+                self.kill()
+            logging.info(f'{length}, {seek}, {seek / length}')
         except KeyboardInterrupt:
             self.kill()
 
 
-# if __name__ == "__main__":
-#     k = VLCClient()
-#     k.play_file("/path/to/file.mp4")
-#     time.sleep(2)
-#     k.pause()
-#     k.vol_up()
-#     k.vol_up()
-#     time.sleep(2)
-#     k.vol_down()
-#     k.vol_down()
-#     time.sleep(2)
-#     k.play()
-#     time.sleep(2)
-#     k.stop()
+if __name__ == "__main__":
+    k = VLCClient()
+    # k.play_file("/Users/francis/pikaraoke-songs/qFbvigJTXLs.mp4")
+    k.play_file("/Users/francis/pikaraoke-songs/qFbvigJTXLs.mp4")
+    time.sleep(3)
+    k.add_song("/Users/francis/pikaraoke-songs/output.mp4")
+    time.sleep(2)
+    k.switch_vocals_accompaniment()
+    time.sleep(12)
+    k.stop()
