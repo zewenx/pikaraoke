@@ -823,7 +823,7 @@ if __name__ == "__main__":
         show_overlay=args.show_overlay
     )
 
-    if (args.developer_mode):
+    if args.developer_mode:
         th = threading.Thread(target=k.run)
         th.start()
         app.run(debug=True, port=args.port)
