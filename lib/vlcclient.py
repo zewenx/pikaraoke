@@ -233,6 +233,13 @@ class VLCClient:
 
     def add_song(self, file_url):
         return self.command(f"in_enqueue&input={file_url}")
+
+    def switch_vocals_accompaniment(self):
+        seek_val = self.get_seek()
+        self.command(f"pl_next")
+        time.sleep(0.1)
+        self.seek(seek_val)
+
     def seek(self, val=0):
         return self.command(f"seek&val={val}")
 

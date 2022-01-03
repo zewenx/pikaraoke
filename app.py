@@ -232,6 +232,19 @@ def vol_down():
     k.vol_down()
     return redirect(url_for("home"))
 
+@app.route("/switch_accompaniment")
+def switch_accompaniment():
+    k.switch_vocals_accompaniment(ACCOMPANIMENT_SUFFIX)
+    logging.info('Switch to ACCOMPANIMENT')
+    return redirect(url_for("home"))
+
+
+@app.route("/switch_vocal")
+def switch_vocal():
+    k.switch_vocals_accompaniment(VOCAL_SUFFIX)
+    logging.info('Switch to vocal')
+    return redirect(url_for("home"))
+
 
 @app.route("/search", methods=["GET"])
 def search():

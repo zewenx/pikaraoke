@@ -708,6 +708,12 @@ class Karaoke:
             logging.warning("Tried to volume down, but no file is playing!")
             return False
 
+    def switch_vocals_accompaniment(self, playing_type):
+        logging.info(f'{self.playing_type} to {playing_type}')
+        if self.playing_type != playing_type:
+            self.playing_type = playing_type
+            self.vlcclient.switch_vocals_accompaniment()
+
     def restart(self):
         if self.is_file_playing():
             if self.use_vlc:
