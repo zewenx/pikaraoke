@@ -821,10 +821,10 @@ class Karaoke:
                         if not pygame.display.get_active():
                             self.pygame_reset_screen()
                         self.render_next_song_to_splash_screen()
-                        i = 0
-                        while i < (self.splash_delay * 1000):
-                            self.handle_run_loop()
-                            i += self.loop_interval
+                        # i = 0
+                        # while i < (self.splash_delay * 1000):
+                        self.handle_run_loop()
+                            # i += self.loop_interval
                         self.play_file(self.queue[0]["file"])
                         self.now_playing_user = self.queue[0]["user"]
                         self.queue.pop(0)
