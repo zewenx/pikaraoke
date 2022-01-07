@@ -522,7 +522,15 @@ class Karaoke:
 
     def delete(self, song_path):
         logging.info("Deleting song: " + song_path)
-        os.remove(song_path)
+
+        accompaniment_path = song_path.replace(VOCAL_SUFFIX, ACCOMPANIMENT_SUFFIX)
+        if os.path.splitext(accompaniment_path):
+            os.remove(accompaniment_path)
+
+        vocal_path = song_path.replace(ACCOMPANIMENT_SUFFIX, VOCAL_SUFFIX)
+        if os.path.splitext(vocal_path):
+            os.remove(vocal_path)
+
         ext = os.path.splitext(song_path)
         # if we have an associated cdg file, delete that too
         cdg_file = song_path.replace(ext[1], ".cdg")
