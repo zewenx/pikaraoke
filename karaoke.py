@@ -582,6 +582,7 @@ class Karaoke:
         self.now_playing = self.filename_from_path(file_path)
         self.now_playing_filename = file_path
 
+        self.playing_type = ACCOMPANIMENT_SUFFIX
         if self.use_vlc:
             logging.info("Playing video in VLC: " + self.now_playing)
             if semitones == 0:
