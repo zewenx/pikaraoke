@@ -833,8 +833,6 @@ class Karaoke:
                     self.pygame_reset_screen()
                 self.handle_run_loop()
 
-                if self.is_file_playing():
-                    self.vlcclient.run()
             except KeyboardInterrupt:
                 logging.warn("Keyboard interrupt: Exiting pikaraoke...")
                 self.running = False
