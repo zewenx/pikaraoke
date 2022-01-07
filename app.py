@@ -795,7 +795,7 @@ if __name__ == "__main__":
         print("Creating download path: " + dl_path)
         os.makedirs(dl_path)
 
-    if (args.developer_mode):
+    if args.developer_mode:
         logging.warning("Splash screen is disabled in developer mode due to main thread conflicts")
         args.hide_splash_screen = True
 
