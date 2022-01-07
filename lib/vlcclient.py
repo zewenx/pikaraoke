@@ -161,7 +161,12 @@ class VLCClient:
                 command, shell=(self.platform == "windows"), stdin=subprocess.PIPE
             )
             time.sleep(1)
-            self.add_song(file_path.replace(ACCOMPANIMENT_SUFFIX, VOCAL_SUFFIX))
+            vocal_path = file_path.replace(ACCOMPANIMENT_SUFFIX, VOCAL_SUFFIX)
+            if os.path.exists(vocal_path):
+                self.add_song(vocal_path)
+            time.sleep(1)
+            listener = Timer(1, self.listen_status)
+            listener.start()
         except Exception as e:
             logging.error("Playing file failed: " + str(e))
 
@@ -300,14 +305,22 @@ class VLCClient:
         request = requests.get(url, auth=("", self.http_password))
         return ET.fromstring(request.text)
 
+    def listen_status(self):
+        while True:
+            try:
+                time.sleep(1)
+                length = self.get_length()
+                seek = self.get_seek()
+                if length and seek / length > 0.98:
+                    self.kill()
+                    break
+                logging.info(f'{length}, {seek}, {seek / length}')
+            except:
+                self.kill()
+                break
     def run(self):
         try:
-            time.sleep(1)
-            length = self.get_length()
-            seek = self.get_seek()
-            if length and seek/length > 0.98:
-                self.kill()
-            logging.info(f'{length}, {seek}, {seek / length}')
+           pass
         except KeyboardInterrupt:
             self.kill()
 
