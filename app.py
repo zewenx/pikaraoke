@@ -826,7 +826,7 @@ if __name__ == "__main__":
     if args.developer_mode:
         th = threading.Thread(target=k.run)
         th.start()
-        app.run(debug=True, port=args.port)
+        app.run(debug=True, host=k.ip, port=args.port)
     else:
         # Start the CherryPy WSGI web server
         cherrypy.tree.graft(app, "/")
