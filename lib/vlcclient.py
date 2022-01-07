@@ -255,7 +255,10 @@ class VLCClient:
         return seek
 
     def vol_up(self):
-        return self.command("volume&val=%d" % (self.get_volume() + self.volume_offset))
+        logging.error(self.get_volume(), self.volume_offset)
+        current_volume = self.get_volume()
+        if current_volume + self.volume_offset < 250:
+            return self.command("volume&val=%d" % (current_volume + self.volume_offset))
 
     def vol_down(self):
         return self.command("volume&val=%d" % (self.get_volume() - self.volume_offset))
