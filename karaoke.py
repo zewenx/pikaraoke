@@ -455,12 +455,9 @@ class Karaoke:
         accompaniment_path = base + ACCOMPANIMENT_SUFFIX + ext
         vocal_path = base + VOCAL_SUFFIX + ext
 
-        for item in ['karaoke', '伴奏', 'accompaniment']:
-            if item in os.path.basename(file_path.lower()):
-                os.rename(file_path, accompaniment_path)
-                return accompaniment_path
-
         tmp_path = os.path.expanduser(TMP_DIR)
+        tmp_path = os.path.join(tmp_path, str(random.randint(1, 10000000)))
+
         if not tmp_path.endswith("/"):
             tmp_path += "/"
         if not os.path.exists(tmp_path):
@@ -482,9 +479,7 @@ class Karaoke:
 
             os.rename(file_path, vocal_path)
 
-            P = Path(tmp_path)
-            for file in P.rglob('*.*'):
-                os.remove(file)
+            shutil.rmtree(tmp_path, ignore_errors=True)
         return accompaniment_path
 
     def get_available_songs(self):
