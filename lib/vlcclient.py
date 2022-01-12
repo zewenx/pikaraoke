@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 import random
@@ -11,6 +10,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from threading import Timer
 from constants import *
+import threading
 
 import requests
 
@@ -145,31 +145,41 @@ class VLCClient:
         else:
             return file_path
 
-    def play_file(self, file_path, additional_parameters=None):
-        try: 
-            file_path = self.process_file(file_path)
+    def play_file(self, file_path, additional_parameters=None, playing_type=ACCOMPANIMENT_SUFFIX):
+        try:
+
+            accompaniment_path = self.process_file(file_path)
+            vocal_path = file_path.replace(ACCOMPANIMENT_SUFFIX, VOCAL_SUFFIX)
+
+            if playing_type == ACCOMPANIMENT_SUFFIX:
+                first_file, second_file = accompaniment_path, vocal_path
+            else:
+                first_file, second_file = vocal_path, accompaniment_path
+
             if self.is_playing() or self.is_paused():
                 self.logger.debug("VLC is currently playing, stopping track...")
                 self.stop()
                 # this pause prevents vlc http server from being borked after transpose
                 time.sleep(0.2)
             if self.platform == "windows":
-                file_path = r"{}".format(file_path.replace('/','\\'))
+                first_file = r"{}".format(first_file.replace('/', '\\'))
+                second_file = r"{}".format(second_file.replace('/', '\\'))
+
             if additional_parameters == None:
-                command = self.cmd_base + [file_path]
+                command = self.cmd_base + [first_file]
             else:
-                command = self.cmd_base + additional_parameters + [file_path]
-            logging.debug("VLC Command: %s" % command)
+                command = self.cmd_base + additional_parameters + [first_file]
             self.logger.debug("VLC Command: %s" % command)
             self.process = subprocess.Popen(
                 command, shell=(self.platform == "windows"), stdin=subprocess.PIPE
             )
+            time.sleep(2)
+
+            if os.path.exists(second_file):
+                self.add_song(second_file)
+
             time.sleep(1)
-            vocal_path = file_path.replace(ACCOMPANIMENT_SUFFIX, VOCAL_SUFFIX)
-            if os.path.exists(vocal_path):
-                self.add_song(vocal_path)
-            time.sleep(1)
-            listener = Timer(1, self.listen_status)
+            listener = threading.Thread(target=self.listen_status)
             listener.start()
         except Exception as e:
             self.logger.error("Playing file failed: " + str(e))
@@ -280,15 +290,16 @@ class VLCClient:
 
     def kill(self):
         try:
-            self.process.kill()
+            if self.process:
+                self.process.kill()
         except (OSError, AttributeError) as e:
             print(e)
             return
 
     def is_running(self):
         return (
-            self.process != None and self.process.poll() == None
-        ) or self.is_transposing
+                       self.process != None and self.process.poll() == None
+               ) or self.is_transposing
 
     def is_playing(self):
         if self.is_running():
@@ -324,7 +335,7 @@ class VLCClient:
         return ET.fromstring(request.text)
 
     def listen_status(self):
-        while True:
+        while self.is_playing():
             try:
                 time.sleep(1)
                 length = self.get_length()
