@@ -28,6 +28,12 @@ try:
 except ImportError:
     from urllib import quote, unquote
 
+logging.basicConfig(
+            format="[%(asctime)s] %(levelname)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+            level=int(logging.DEBUG),
+        )
+logger = logging.getLogger('PIKTV')
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -116,7 +122,7 @@ def nowplaying():
         }
         return json.dumps(rc)
     except (Exception) as e:
-        logging.error("Problem loading /nowplaying, pikaraoke may still be starting up: " + str(e))
+        logger.error("Problem loading /nowplaying, pikaraoke may still be starting up: " + str(e))
         return ""
 
 
@@ -235,14 +241,14 @@ def vol_down():
 @app.route("/switch_accompaniment")
 def switch_accompaniment():
     k.switch_vocals_accompaniment(ACCOMPANIMENT_SUFFIX)
-    logging.info('Switch to ACCOMPANIMENT')
+    logger.info('Switch to ACCOMPANIMENT')
     return redirect(url_for("home"))
 
 
 @app.route("/switch_vocal")
 def switch_vocal():
     k.switch_vocals_accompaniment(VOCAL_SUFFIX)
-    logging.info('Switch to vocal')
+    logger.info('Switch to vocal')
     return redirect(url_for("home"))
 
 
@@ -763,9 +769,10 @@ if __name__ == "__main__":
         os.makedirs(dl_path)
 
     if args.developer_mode:
-        logging.warning("Splash screen is disabled in developer mode due to main thread conflicts")
+        logger.warning("Splash screen is disabled in developer mode due to main thread conflicts")
         args.hide_splash_screen = True
 
+    logger.setLevel(int(args.log_level))
     # Configure karaoke process
     global k
     k = karaoke.Karaoke(
@@ -782,7 +789,8 @@ if __name__ == "__main__":
         vlc_path=args.vlc_path,
         vlc_port=args.vlc_port,
         logo_path=args.logo_path,
-        show_overlay=args.show_overlay
+        show_overlay=args.show_overlay,
+        logger=logger
     )
 
     if args.developer_mode:

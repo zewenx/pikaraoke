@@ -29,8 +29,9 @@ def get_default_vlc_path(platform):
     else:
         return "/usr/bin/vlc"
 
+
 class VLCClient:
-    def __init__(self, port=5002, path=None, qrcode=None, url=None):
+    def __init__(self, port=5002, path=None, qrcode=None, url=None, logger=None):
 
         # HTTP remote control server
         self.http_password = "".join(
@@ -43,6 +44,8 @@ class VLCClient:
 
         self.qrcode = qrcode
         self.url = url
+        self.logger = logger
+        self.listener = None
 
         # Handle vlc paths
         self.platform = get_platform()
@@ -146,7 +149,7 @@ class VLCClient:
         try: 
             file_path = self.process_file(file_path)
             if self.is_playing() or self.is_paused():
-                logging.debug("VLC is currently playing, stopping track...")
+                self.logger.debug("VLC is currently playing, stopping track...")
                 self.stop()
                 # this pause prevents vlc http server from being borked after transpose
                 time.sleep(0.2)
@@ -157,6 +160,7 @@ class VLCClient:
             else:
                 command = self.cmd_base + additional_parameters + [file_path]
             logging.debug("VLC Command: %s" % command)
+            self.logger.debug("VLC Command: %s" % command)
             self.process = subprocess.Popen(
                 command, shell=(self.platform == "windows"), stdin=subprocess.PIPE
             )
@@ -168,7 +172,7 @@ class VLCClient:
             listener = Timer(1, self.listen_status)
             listener.start()
         except Exception as e:
-            logging.error("Playing file failed: " + str(e))
+            self.logger.error("Playing file failed: " + str(e))
 
     def play_file_transpose(self, file_path, semitones):
         # --speex-resampler-quality=<integer [0 .. 10]>
@@ -200,7 +204,7 @@ class VLCClient:
         ]
 
         self.is_transposing = True
-        logging.debug("Transposing file...")
+        self.logger.debug("Transposing file...")
         self.play_file(file_path, params)
 
         # Prevent is_running() from returning False while we're transposing
@@ -209,7 +213,7 @@ class VLCClient:
 
     def set_transposing_complete(self):
         self.is_transposing = False
-        logging.debug("Transposing complete")
+        self.logger.debug("Transposing complete")
 
     def command(self, command):
         if self.is_running():
@@ -217,7 +221,7 @@ class VLCClient:
             request = requests.get(url, auth=("", self.http_password))
             return request
         else:
-            logging.error("No active VLC process. Could not run command: " + command)
+            self.logger.error("No active VLC process. Could not run command: " + command)
 
     def pause(self):
         return self.command("pl_pause")
@@ -230,7 +234,7 @@ class VLCClient:
             return self.command("pl_stop")
         except:
             e = sys.exc_info()[0]
-            logging.warn(
+            self.logger.warn(
                 "Track stop: server may have shut down before http return code received: %s"
                 % e
             )
@@ -250,12 +254,12 @@ class VLCClient:
 
     def restart(self):
         seek = self.seek(0)
-        logging.info(seek)
+        self.logger.info(seek)
         self.play()
         return seek
 
     def vol_up(self):
-        logging.error(self.get_volume(), self.volume_offset)
+        self.logger.error(self.get_volume(), self.volume_offset)
         current_volume = self.get_volume()
         if current_volume + self.volume_offset < 250:
             return self.command("volume&val=%d" % (current_volume + self.volume_offset))
@@ -317,13 +321,13 @@ class VLCClient:
                 if length and seek / length > 0.98:
                     self.kill()
                     break
-                logging.info(f'{length}, {seek}, {seek / length}')
             except:
-                self.kill()
                 break
+        self.logger.debug('Listener thread exits.')
+
     def run(self):
         try:
-           pass
+            pass
         except KeyboardInterrupt:
             self.kill()
 

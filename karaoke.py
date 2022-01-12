@@ -1,12 +1,12 @@
 
 import json
-import logging
 import os
 import random
 import socket
 import subprocess
 import time
 from constants import *
+import shutil
 
 from subprocess import check_output
 from pathlib import Path
@@ -53,16 +53,15 @@ class Karaoke:
             dual_screen=False,
             high_quality=False,
             volume=0,
-            log_level=logging.DEBUG,
             splash_delay=2,
             youtubedl_path="/usr/local/bin/youtube-dl",
             omxplayer_path=None,
             use_omxplayer=False,
-            use_vlc=True,
             vlc_path=None,
             vlc_port=None,
             logo_path=None,
-            show_overlay=False
+            show_overlay=False,
+            logger=None
     ):
 
         # override with supplied constructor args if provided
@@ -77,8 +76,6 @@ class Karaoke:
         self.splash_delay = int(splash_delay)
         self.volume_offset = volume
         self.youtubedl_path = youtubedl_path
-        self.use_omxplayer = use_omxplayer
-        self.use_vlc = use_vlc
         self.vlc_path = vlc_path
         self.vlc_port = vlc_port
         self.logo_path = self.default_logo_path if logo_path == None else logo_path
@@ -89,14 +86,9 @@ class Karaoke:
         self.vlcclient = None
         self.omxclient = None
         self.screen = None
+        self.logger = logger
 
-        logging.basicConfig(
-            format="[%(asctime)s] %(levelname)s: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-            level=int(log_level),
-        )
-
-        logging.debug(
+        self.logger.debug(
             """
     http port: %s
     hide IP: %s
@@ -110,10 +102,8 @@ class Karaoke:
     default volume: %s
     youtube-dl path: %s
     logo path: %s
-    Use VLC: %s
     VLC path: %s
     VLC port: %s
-    log_level: %s
     show overlay: %s"""
             % (
                 self.port,
@@ -128,10 +118,8 @@ class Karaoke:
                 self.volume_offset,
                 self.youtubedl_path,
                 self.logo_path,
-                self.use_vlc,
                 self.vlc_path,
                 self.vlc_port,
-                log_level,
                 self.show_overlay
             )
         )
@@ -146,13 +134,13 @@ class Karaoke:
                 addresses = addresses_str.split(" ")
                 self.ip = addresses[0]
                 if not self.is_network_connected():
-                    logging.debug("Couldn't get IP, retrying....")
+                    self.logger.debug("Couldn't get IP, retrying....")
                 else:
                     break
         else:
             self.ip = self.get_ip()
 
-        logging.debug("IP address (for QR code and splash screen): " + self.ip)
+        self.logger.debug("IP address (for QR code and splash screen): " + self.ip)
 
         self.url = "http://%s:%s" % (self.ip, self.port)
 
@@ -221,31 +209,31 @@ class Karaoke:
         return self.youtubedl_version
 
     def upgrade_youtubedl(self):
-        logging.info(
+        self.logger.info(
             "Upgrading youtube-dl, current version: %s" % self.youtubedl_version
         )
         output = check_output([self.youtubedl_path, "-U"]).decode("utf8").strip()
-        logging.info(output)
+        self.logger.info(output)
         if "It looks like you installed youtube-dl with a package manager" in output:
             try:
-                logging.info("Attempting youtube-dl upgrade via pip3...")
+                self.logger.info("Attempting youtube-dl upgrade via pip3...")
                 output = check_output(
                     ["pip3", "install", "--upgrade", "youtube-dl"]
                 ).decode("utf8")
             except FileNotFoundError:
-                logging.info("Attempting youtube-dl upgrade via pip...")
+                self.logger.info("Attempting youtube-dl upgrade via pip...")
                 output = check_output(
                     ["pip", "install", "--upgrade", "youtube-dl"]
                 ).decode("utf8")
-            logging.info(output)
+            self.logger.info(output)
         self.get_youtubedl_version()
-        logging.info("Done. New version: %s" % self.youtubedl_version)
+        self.logger.info("Done. New version: %s" % self.youtubedl_version)
 
     def is_network_connected(self):
         return not len(self.ip) < 7
 
     def generate_qr_code(self):
-        logging.debug("Generating URL QR code")
+        self.logger.debug("Generating URL QR code")
         qr = qrcode.QRCode(
             version=1,
             box_size=1,
@@ -266,9 +254,10 @@ class Karaoke:
         else:
             return pygame.FULLSCREEN
 
+
     def initialize_screen(self):
         if not self.hide_splash_screen:
-            logging.debug("Initializing pygame")
+            self.logger.debug("Initializing pygame")
             self.full_screen = True
             pygame.display.init()
             pygame.display.set_caption("pikaraoke")
@@ -277,7 +266,7 @@ class Karaoke:
             self.font = pygame.font.SysFont(pygame.font.get_default_font(), 40)
             self.width = pygame.display.Info().current_w
             self.height = pygame.display.Info().current_h
-            logging.debug("Initializing screen mode")
+            self.logger.debug("Initializing screen mode")
 
             if self.platform == "windows":
                 self.screen = pygame.display.set_mode(
@@ -302,11 +291,11 @@ class Karaoke:
                     alarm(0)
                 except Alarm:
                     raise KeyboardInterrupt
-            logging.debug("Done initializing splash screen")
+            self.logger.debug("Done initializing splash screen")
 
     def toggle_full_screen(self):
         if not self.hide_splash_screen:
-            logging.debug("Toggling fullscreen...")
+            self.logger.debug("Toggling fullscreen...")
             if self.full_screen:
                 self.screen = pygame.display.set_mode([1280, 720])
                 self.render_splash_screen()
@@ -320,7 +309,7 @@ class Karaoke:
 
     def render_splash_screen(self):
         if not self.hide_splash_screen:
-            logging.debug("Rendering splash screen")
+            self.logger.debug("Rendering splash screen")
 
             self.screen.fill((0, 0, 0))
 
@@ -342,7 +331,7 @@ class Karaoke:
                     )
                     self.screen.blit(text, (p_image.get_width() + 35, blitY))
                     time.sleep(10)
-                    logging.info(
+                    self.logger.info(
                         "No IP found. Network/Wifi configuration required. For wifi config, try: sudo raspi-config or the desktop GUI: startx"
                     )
                     self.stop()
@@ -382,7 +371,7 @@ class Karaoke:
         if not self.hide_splash_screen:
             self.render_splash_screen()
             if len(self.queue) >= 1:
-                logging.debug("Rendering next song to splash screen")
+                self.logger.debug("Rendering next song to splash screen")
                 next_song = self.queue[0]["title"]
                 max_length = 60
                 if (len(next_song) > max_length):
@@ -402,18 +391,18 @@ class Karaoke:
                 self.screen.blit(user_name, (self.width - user_name.get_width() - 10, y + 50))
                 return True
             else:
-                logging.debug("Could not render next song to splash. No song in queue")
+                self.logger.debug("Could not render next song to splash. No song in queue")
                 return False
 
     def get_search_results(self, textToSearch):
-        logging.info("Searching YouTube for: " + textToSearch)
+        self.logger.info("Searching YouTube for: " + textToSearch)
         num_results = 15
         yt_search = 'ytsearch%d:"%s"' % (num_results, textToSearch)
         cmd = [self.youtubedl_path, "-j", "--no-playlist", "--flat-playlist", yt_search]
-        logging.debug("Youtube-dl search command: " + " ".join(cmd))
+        self.logger.debug("Youtube-dl search command: " + " ".join(cmd))
         try:
             output = subprocess.check_output(cmd).decode("utf-8")
-            logging.debug("Search results: " + output)
+            self.logger.debug("Search results: " + output)
             rc = []
             video_url_base = "https://www.youtube.com/watch?v="
             for each in output.split("\n"):
@@ -424,14 +413,14 @@ class Karaoke:
                     rc.append([j["title"], video_url_base + j["url"], j["id"]])
             return rc
         except Exception as e:
-            logging.debug("Error while executing search: " + str(e))
+            self.logger.debug("Error while executing search: " + str(e))
             raise e
 
     def get_karaoke_search_results(self, songTitle):
         return self.get_search_results(songTitle + " karaoke")
 
     def download_video(self, video_url, enqueue=False, user="Pikaraoke"):
-        logging.info("Downloading video: " + video_url)
+        self.logger.info("Downloading video: " + video_url)
         dl_path = self.download_path + "%(title)s---%(id)s.%(ext)s"
         file_quality = (
             "bestvideo[ext!=webm][height<=1080]+bestaudio[ext!=webm]/best[ext!=webm]"
@@ -439,24 +428,26 @@ class Karaoke:
             else "mp4"
         )
         cmd = [self.youtubedl_path, "-f", file_quality, "-o", dl_path, video_url]
-        logging.debug("Youtube-dl command: " + " ".join(cmd))
+        self.logger.debug("Youtube-dl command: " + " ".join(cmd))
         rc = subprocess.call(cmd)
         if rc != 0:
-            logging.error("Error code while downloading, retrying once...")
+            self.logger.error("Error code while downloading, retrying once...")
             rc = subprocess.call(cmd)  # retry once. Seems like this can be flaky
         if rc == 0:
-            logging.debug("Song successfully downloaded: " + video_url)
+            self.logger.debug("Song successfully downloaded: " + video_url)
 
             y = self.get_youtube_id_from_url(video_url)
             s = self.find_song_by_youtube_id(y)
             item = self.post_process_video(s)
-            if enqueue and item:
-                self.enqueue(item, user)
+
+            if item:
                 self.get_available_songs()
-            else:
-                logging.error("Error queueing song: " + video_url)
+                if enqueue:
+                    self.enqueue(item, user)
+                else:
+                    self.logger.error("Error queueing song: " + video_url)
         else:
-            logging.error("Error downloading song: " + video_url)
+            self.logger.error("Error downloading song: " + video_url)
         return rc
 
     def post_process_video(self, file_path):
@@ -497,7 +488,7 @@ class Karaoke:
         return accompaniment_path
 
     def get_available_songs(self):
-        logging.info("Fetching available songs in: " + self.download_path)
+        self.logger.info("Fetching available songs in: " + self.download_path)
         types = ['.mp4', '.mp3', '.zip', '.mkv', '.avi', '.webm', '.mov']
         files_grabbed = []
         P = Path(self.download_path)
@@ -505,32 +496,32 @@ class Karaoke:
             base, ext = os.path.splitext(file.as_posix())
             if ext.lower() in types and base.endswith(ACCOMPANIMENT_SUFFIX):
                 if os.path.isfile(file.as_posix()):
-                    logging.debug("adding song: " + file.name)
+                    self.logger.debug("adding song: " + file.name)
                     files_grabbed.append(file.as_posix())
 
         self.available_songs = sorted(files_grabbed, key=lambda f: str.lower(os.path.basename(f)))
 
     def delete(self, song_path):
-        logging.info("Deleting song: " + song_path)
+        self.logger.info("Deleting song: " + song_path)
 
         accompaniment_path = song_path.replace(VOCAL_SUFFIX, ACCOMPANIMENT_SUFFIX)
-        if os.path.splitext(accompaniment_path):
+        if os.path.exists(accompaniment_path):
             os.remove(accompaniment_path)
 
         vocal_path = song_path.replace(ACCOMPANIMENT_SUFFIX, VOCAL_SUFFIX)
-        if os.path.splitext(vocal_path):
+        if os.path.exists(vocal_path):
             os.remove(vocal_path)
 
         ext = os.path.splitext(song_path)
         # if we have an associated cdg file, delete that too
         cdg_file = song_path.replace(ext[1], ".cdg")
-        if (os.path.exists(cdg_file)):
+        if os.path.exists(cdg_file):
             os.remove(cdg_file)
 
         self.get_available_songs()
 
     def rename(self, song_path, new_name):
-        logging.info("Renaming song: '" + song_path + "' to: " + new_name)
+        self.logger.info("Renaming song: '" + song_path + "' to: " + new_name)
         ext = os.path.splitext(song_path)
         if len(ext) == 2:
             new_file_name = new_name + ext[1]
@@ -554,7 +545,7 @@ class Karaoke:
             if os.path.isfile(file.as_posix()) and youtube_id in file.as_posix():
                 return file.as_posix()
 
-        logging.error("New downloaded song not found: " + youtube_id)
+        self.logger.error("New downloaded song not found: " + youtube_id)
         return None
 
     def get_youtube_id_from_url(self, url):
@@ -564,7 +555,7 @@ class Karaoke:
         if youtube_id:
             return youtube_id
         else:
-            logging.error("Error parsing youtube id from url: " + url)
+            self.logger.error("Error parsing youtube id from url: " + url)
             return None
 
     def kill_player(self):
@@ -577,16 +568,11 @@ class Karaoke:
         self.now_playing = self.filename_from_path(file_path)
         self.now_playing_filename = file_path
 
-        self.playing_type = ACCOMPANIMENT_SUFFIX
-        if self.use_vlc:
-            logging.info("Playing video in VLC: " + self.now_playing)
-            if semitones == 0:
-                self.vlcclient.play_file(file_path)
-            else:
-                self.vlcclient.play_file_transpose(file_path, semitones)
+        self.logger.info("Playing video in VLC: " + self.now_playing)
+        if semitones == 0:
+            self.vlcclient.play_file(file_path, playing_type=self.playing_type)
         else:
-            logging.info("Playing video in omxplayer: " + self.now_playing)
-            self.omxclient.play_file(file_path)
+            self.vlcclient.play_file_transpose(file_path, semitones)
 
         self.is_paused = False
         self.render_splash_screen()  # remove old previous track
@@ -611,19 +597,19 @@ class Karaoke:
         return False
 
     def enqueue(self, song_path, user="Pikaraoke"):
-        if (self.is_song_in_queue(song_path)):
-            logging.warn("Song is already in queue, will not add: " + song_path)
+        if self.is_song_in_queue(song_path):
+            self.logger.warn("Song is already in queue, will not add: " + song_path)
             return False
         else:
-            logging.info("'%s' is adding song to queue: %s" % (user, song_path))
+            self.logger.info("'%s' is adding song to queue: %s" % (user, song_path))
             self.queue.append({"user": user, "file": song_path, "title": self.filename_from_path(song_path)})
             return True
 
     def queue_add_random(self, amount):
-        logging.info("Adding %d random songs to queue" % amount)
+        self.logger.info("Adding %d random songs to queue" % amount)
         songs = list(self.available_songs)  # make a copy
         if len(songs) == 0:
-            logging.warn("No available songs!")
+            self.logger.warn("No available songs!")
             return False
         i = 0
         while i < amount:
@@ -640,7 +626,7 @@ class Karaoke:
         return True
 
     def queue_clear(self):
-        logging.info("Clearing queue!")
+        self.logger.info("Clearing queue!")
         self.queue = []
         self.skip()
 
@@ -654,34 +640,34 @@ class Karaoke:
             else:
                 index += 1
         if song == None:
-            logging.error("Song not found in queue: " + song["file"])
+            self.logger.error("Song not found in queue: " + song["file"])
             return False
         if action == "up":
             if index < 1:
-                logging.warn("Song is up next, can't bump up in queue: " + song["file"])
+                self.logger.warn("Song is up next, can't bump up in queue: " + song["file"])
                 return False
             else:
-                logging.info("Bumping song up in queue: " + song["file"])
+                self.logger.info("Bumping song up in queue: " + song["file"])
                 del self.queue[index]
                 self.queue.insert(index - 1, song)
                 return True
         elif action == "down":
             if index == len(self.queue) - 1:
-                logging.warn(
+                self.logger.warn(
                     "Song is already last, can't bump down in queue: " + song["file"]
                 )
                 return False
             else:
-                logging.info("Bumping song down in queue: " + song["file"])
+                self.logger.info("Bumping song down in queue: " + song["file"])
                 del self.queue[index]
                 self.queue.insert(index + 1, song)
                 return True
         elif action == "delete":
-            logging.info("Deleting song from queue: " + song["file"])
+            self.logger.info("Deleting song from queue: " + song["file"])
             del self.queue[index]
             return True
         else:
-            logging.error("Unrecognized direction: " + action)
+            self.logger.error("Unrecognized direction: " + action)
             return False
 
     def skip(self):
@@ -692,7 +678,7 @@ class Karaoke:
             self.reset_now_playing()
             return True
         else:
-            logging.warning("Tried to skip, but no file is playing!")
+            self.logger.warning("Tried to skip, but no file is playing!")
             return False
 
     def pause(self):
@@ -706,7 +692,7 @@ class Karaoke:
             self.is_paused = not self.is_paused
             return True
         else:
-            logging.warning("Tried to pause, but no file is playing!")
+            self.logger.warning("Tried to pause, but no file is playing!")
             return False
 
     def vol_up(self):
@@ -714,7 +700,7 @@ class Karaoke:
             self.vlcclient.vol_up()
             return True
         else:
-            logging.warning("Tried to volume up, but no file is playing!")
+            self.logger.warning("Tried to volume up, but no file is playing!")
             return False
 
     def vol_down(self):
@@ -723,11 +709,11 @@ class Karaoke:
             return True
             return True
         else:
-            logging.warning("Tried to volume down, but no file is playing!")
+            self.logger.warning("Tried to fast backward 7 seconds, but no file is playing!")
             return False
 
     def switch_vocals_accompaniment(self, playing_type):
-        logging.info(f'{self.playing_type} to {playing_type}')
+        self.logger.info(f'{self.playing_type} to {playing_type}')
         if self.playing_type != playing_type:
             self.playing_type = playing_type
             self.vlcclient.switch_vocals_accompaniment()
@@ -738,7 +724,7 @@ class Karaoke:
             self.is_paused = False
             return True
         else:
-            logging.warning("Tried to restart, but no file is playing!")
+            self.logger.warning("Tried to restart, but no file is playing!")
             return False
 
     def stop(self):
@@ -750,11 +736,11 @@ class Karaoke:
         else:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    logging.warn("Window closed: Exiting pikaraoke...")
+                    self.logger.warn("Window closed: Exiting pikaraoke...")
                     self.running = False
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
-                        logging.warn("ESC pressed: Exiting pikaraoke...")
+                        self.logger.warn("ESC pressed: Exiting pikaraoke...")
                         self.running = False
                     if event.key == pygame.K_f:
                         self.toggle_full_screen()
@@ -768,7 +754,7 @@ class Karaoke:
         if self.hide_splash_screen:
             pass
         else:
-            logging.debug("Resetting pygame screen...")
+            self.logger.debug("Resetting pygame screen...")
             pygame.display.quit()
             self.initialize_screen()
             self.render_splash_screen()
@@ -781,7 +767,7 @@ class Karaoke:
         self.now_playing_transpose = 0
 
     def run(self):
-        logging.info("Starting PiKaraoke!")
+        self.logger.info("Starting PiKaraoke!")
         self.running = True
         while self.running:
             try:
@@ -805,5 +791,5 @@ class Karaoke:
                 self.handle_run_loop()
 
             except KeyboardInterrupt:
-                logging.warn("Keyboard interrupt: Exiting pikaraoke...")
+                self.logger.warn("Keyboard interrupt: Exiting pikaraoke...")
                 self.running = False
