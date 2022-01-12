@@ -611,18 +611,10 @@ class Karaoke:
         if len(songs) == 0:
             self.logger.warn("No available songs!")
             return False
-        i = 0
-        while i < amount:
-            r = random.randint(0, len(songs) - 1)
-            if self.is_song_in_queue(songs[r]):
-                logging.warn("Song already in queue, trying another... " + songs[r])
-            else:
-                self.queue.append({"user": "Randomizer", "file": songs[r], "title": self.filename_from_path(songs[r])})
-                i += 1
-            songs.pop(r)
-            if len(songs) == 0:
-                logging.warn("Ran out of songs!")
-                return False
+
+        selected_songs = random.sample(songs, amount)
+        for song in selected_songs:
+            self.queue.append({"user": "Randomizer", "file": song, "title": self.filename_from_path(song)})
         return True
 
     def queue_clear(self):
