@@ -238,6 +238,17 @@ def vol_down():
     k.vol_down()
     return redirect(url_for("home"))
 
+@app.route("/fast_forward")
+def fast_forward():
+    k.fast_forward()
+    return redirect(url_for("home"))
+
+
+@app.route("/fast_backward")
+def fast_backward():
+    k.fast_backward()
+    return redirect(url_for("home"))
+
 @app.route("/switch_accompaniment")
 def switch_accompaniment():
     k.switch_vocals_accompaniment(ACCOMPANIMENT_SUFFIX)

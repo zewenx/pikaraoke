@@ -95,6 +95,14 @@
                 $.get("/vol_down");
             });
 
+            $("#ff").click(function () {
+                $.get("/fast_forward");
+            });
+
+            $("#fb").click(function () {
+                $.get("/fast_backward");
+            });
+
             $("#switch_accompaniment").click(function () {
                 $.get("/switch_accompaniment");
             });
@@ -172,6 +180,8 @@
                 <br>
                 <button type="radio" id="switch_accompaniment">accompaniment</button>
                 <button type="radio" id="switch_vocal">vocal</button>
+                <a title="Fast rewind 7 seconds" id="fb"><i class="icon icon-left-circled"></i> </a>&nbsp;
+                <a title="Fast forward 7 seconds" id="ff"><i class="icon icon-right-circled"></i> </a>&nbsp;
             </p>
             <!-- </div> -->
 

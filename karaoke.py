@@ -707,6 +707,21 @@ class Karaoke:
         if self.is_file_playing():
             self.vlcclient.vol_down()
             return True
+        else:
+            self.logger.warning("Tried to volume down, but no file is playing!")
+            return False
+
+    def fast_forward(self):
+        if self.is_file_playing():
+            self.vlcclient.fast_forward()
+            return True
+        else:
+            self.logger.warning("Tried to fast forward 7 seconds, but no file is playing!")
+            return False
+
+    def fast_backward(self):
+        if self.is_file_playing():
+            self.vlcclient.fast_backward()
             return True
         else:
             self.logger.warning("Tried to fast backward 7 seconds, but no file is playing!")

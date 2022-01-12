@@ -252,6 +252,17 @@ class VLCClient:
     def seek(self, val=0):
         return self.command(f"seek&val={val}")
 
+    def fast_forward(self, seconds=7):
+        val = self.get_seek()
+        self.seek(int(val) + seconds)
+
+    def fast_backward(self, seconds=7):
+        val = self.get_seek()
+        new_val = int(val) - seconds
+        new_val = 0 if new_val < 0 else new_val
+        self.seek(new_val)
+
+
     def restart(self):
         seek = self.seek(0)
         self.logger.info(seek)
