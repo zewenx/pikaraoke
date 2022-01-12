@@ -695,7 +695,7 @@ if __name__ == "__main__":
         required=False,
     )
     parser.add_argument(
-        "--hide-splash-screen",
+        "--show-splash-screen",
         action="store_true",
         help="Hide splash screen before/between songs.",
         required=False,
@@ -781,7 +781,7 @@ if __name__ == "__main__":
 
     if args.developer_mode:
         logger.warning("Splash screen is disabled in developer mode due to main thread conflicts")
-        args.hide_splash_screen = True
+        args.show_splash_screen = True
 
     logger.setLevel(int(args.log_level))
     # Configure karaoke process
@@ -794,7 +794,7 @@ if __name__ == "__main__":
         volume=args.volume,
         hide_ip=args.hide_ip,
         hide_raspiwifi_instructions=args.hide_raspiwifi_instructions,
-        hide_splash_screen=args.hide_splash_screen,
+        hide_splash_screen=not args.show_splash_screen,
         dual_screen=args.dual_screen,
         high_quality=args.high_quality,
         vlc_path=args.vlc_path,
@@ -817,7 +817,7 @@ if __name__ == "__main__":
                 "engine.autoreload.on": False,
                 "log.screen": True,
                 "server.socket_port": int(args.port),
-                "server.socket_host": "0.0.0.0",
+                "server.socket_host": k.ip,
             }
         )
         cherrypy.engine.start()
