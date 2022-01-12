@@ -14,7 +14,7 @@ from pathlib import Path
 import pygame
 import qrcode
 
-from lib import omxclient, vlcclient
+from lib import vlcclient
 from lib.get_platform import get_platform
 from urllib.parse import urlparse, parse_qsl
 
@@ -77,7 +77,6 @@ class Karaoke:
         self.splash_delay = int(splash_delay)
         self.volume_offset = volume
         self.youtubedl_path = youtubedl_path
-        self.omxplayer_path = omxplayer_path
         self.use_omxplayer = use_omxplayer
         self.use_vlc = use_vlc
         self.vlc_path = vlc_path
@@ -110,9 +109,7 @@ class Karaoke:
     download path: %s
     default volume: %s
     youtube-dl path: %s
-    omxplayer path: %s
     logo path: %s
-    Use OMXPlayer: %s
     Use VLC: %s
     VLC path: %s
     VLC port: %s
@@ -130,9 +127,7 @@ class Karaoke:
                 self.download_path,
                 self.volume_offset,
                 self.youtubedl_path,
-                self.omxplayer_path,
                 self.logo_path,
-                self.use_omxplayer,
                 self.use_vlc,
                 self.vlc_path,
                 self.vlc_port,
@@ -170,13 +165,11 @@ class Karaoke:
         self.kill_player()
 
         self.generate_qr_code()
-        if self.use_vlc:
-            if (self.show_overlay):
-                self.vlcclient = vlcclient.VLCClient(port=self.vlc_port, path=self.vlc_path, qrcode=self.qr_code_path, url=self.url)
-            else:
-                self.vlcclient = vlcclient.VLCClient(port=self.vlc_port, path=self.vlc_path)
+
+        if self.show_overlay:
+            self.vlcclient = vlcclient.VLCClient(port=self.vlc_port, path=self.vlc_path, qrcode=self.qr_code_path, url=self.url, logger=self.logger)
         else:
-            self.omxclient = omxclient.OMXClient(path=self.omxplayer_path, adev=self.omxplayer_adev, dual_screen=self.dual_screen, volume_offset=self.volume_offset)
+            self.vlcclient = vlcclient.VLCClient(port=self.vlc_port, path=self.vlc_path, logger=self.logger)
 
         if not self.hide_splash_screen:
             self.initialize_screen()
@@ -265,14 +258,11 @@ class Karaoke:
         img.save(self.qr_code_path)
 
     def get_default_display_mode(self):
-        if self.use_vlc:
-            if self.platform == "raspberry_pi":
-                os.environ[
-                    "SDL_VIDEO_CENTERED"
-                ] = "1"  # HACK apparently if display mode is fullscreen the vlc window will be at the bottom of pygame
-                return pygame.NOFRAME
-            else:
-                return pygame.FULLSCREEN
+        if self.platform == "raspberry_pi":
+            os.environ[
+                "SDL_VIDEO_CENTERED"
+            ] = "1"  # HACK apparently if display mode is fullscreen the vlc window will be at the bottom of pygame
+            return pygame.NOFRAME
         else:
             return pygame.FULLSCREEN
 
@@ -578,13 +568,10 @@ class Karaoke:
             return None
 
     def kill_player(self):
-        if self.use_vlc:
-            logging.debug("Killing old VLC processes")
-            if self.vlcclient != None:
-                self.vlcclient.kill()
-        else:
-            if self.omxclient != None:
-                self.omxclient.kill()
+        self.logger.debug("Killing old VLC processes")
+        if self.vlcclient:
+            self.vlcclient.kill()
+
 
     def play_file(self, file_path, semitones=0):
         self.now_playing = self.filename_from_path(file_path)
@@ -605,26 +592,17 @@ class Karaoke:
         self.render_splash_screen()  # remove old previous track
 
     def transpose_current(self, semitones):
-        if self.use_vlc:
-            logging.info("Transposing song by %s semitones" % semitones)
-            self.now_playing_transpose = semitones
-            self.play_file(self.now_playing_filename, semitones)
-        else:
-            logging.error("Not using VLC. Can't transpose track.")
+        self.logger.info("Transposing song by %s semitones" % semitones)
+        self.now_playing_transpose = semitones
+        self.play_file(self.now_playing_filename, semitones)
 
     def is_file_playing(self):
-        if self.use_vlc:
-            if self.vlcclient != None and self.vlcclient.is_running():
-                return True
-            else:
-                self.now_playing = None
-                return False
+        if self.vlcclient != None and self.vlcclient.is_running():
+            return True
         else:
-            if self.omxclient != None and self.omxclient.is_running():
-                return True
-            else:
-                self.now_playing = None
-                return False
+            self.now_playing = None
+            return False
+
 
     def is_song_in_queue(self, song_path):
         for each in self.queue:
@@ -708,11 +686,9 @@ class Karaoke:
 
     def skip(self):
         if self.is_file_playing():
-            logging.info("Skipping: " + self.now_playing)
-            if self.use_vlc:
-                self.vlcclient.stop()
-            else:
-                self.omxclient.stop()
+            self.logger.info("Skipping: " + self.now_playing)
+            self.vlcclient.stop()
+            self.vlcclient.kill()
             self.reset_now_playing()
             return True
         else:
@@ -721,17 +697,12 @@ class Karaoke:
 
     def pause(self):
         if self.is_file_playing():
-            logging.info("Toggling pause: " + self.now_playing)
-            if self.use_vlc:
-                if self.vlcclient.is_playing():
-                    self.vlcclient.pause()
-                else:
-                    self.vlcclient.play()
+            self.logger.info("Toggling pause: " + self.now_playing)
+            if self.vlcclient.is_playing():
+                self.vlcclient.pause()
             else:
-                if self.omxclient.is_playing():
-                    self.omxclient.pause()
-                else:
-                    self.omxclient.play()
+                self.vlcclient.play()
+
             self.is_paused = not self.is_paused
             return True
         else:
@@ -740,10 +711,7 @@ class Karaoke:
 
     def vol_up(self):
         if self.is_file_playing():
-            if self.use_vlc:
-                self.vlcclient.vol_up()
-            else:
-                self.omxclient.vol_up()
+            self.vlcclient.vol_up()
             return True
         else:
             logging.warning("Tried to volume up, but no file is playing!")
@@ -751,10 +719,8 @@ class Karaoke:
 
     def vol_down(self):
         if self.is_file_playing():
-            if self.use_vlc:
-                self.vlcclient.vol_down()
-            else:
-                self.omxclient.vol_down()
+            self.vlcclient.vol_down()
+            return True
             return True
         else:
             logging.warning("Tried to volume down, but no file is playing!")
@@ -768,10 +734,7 @@ class Karaoke:
 
     def restart(self):
         if self.is_file_playing():
-            if self.use_vlc:
-                self.vlcclient.restart()
-            else:
-                self.omxclient.restart()
+            self.vlcclient.restart()
             self.is_paused = False
             return True
         else:

@@ -635,14 +635,6 @@ if __name__ == "__main__":
         required=False,
     )
     parser.add_argument(
-        "-o",
-        "--omxplayer-path",
-        help="Path of omxplayer. Only important to raspberry pi hardware. (default: %s)"
-        % default_omxplayer_path,
-        default=default_omxplayer_path,
-        required=False,
-    )
-    parser.add_argument(
         "-y",
         "--youtubedl-path",
         help="Path of youtube-dl. (default: %s)" % default_youtubedl_path,
@@ -711,80 +703,55 @@ if __name__ == "__main__":
         required=False,
     )
     parser.add_argument(
-        "--use-omxplayer",
-        action="store_true",
-        help="Use OMX Player to play video instead of the default VLC Player. This may be better-performing on older raspberry pi devices. Certain features like key change and cdg support wont be available. Note: if you want to play audio to the headphone jack on a rpi, you'll need to configure this in raspi-config: 'Advanced Options > Audio > Force 3.5mm (headphone)'",
-        required=False,
-    ),
-    parser.add_argument(
-        "--use-vlc",
-        action="store_true",
-        help="Use VLC Player to play video. Enabled by default. Note: if you want to play audio to the headphone jack on a rpi, see troubleshooting steps in README.md",
-        required=False,
-    ),
-    parser.add_argument(
         "--vlc-path",
         help="Full path to VLC (Default: %s)" % default_vlc_path,
         default=default_vlc_path,
         required=False,
-    ),
+    )
     parser.add_argument(
         "--vlc-port",
         help="HTTP port for VLC remote control api (Default: %s)" % default_vlc_port,
         default=default_vlc_port,
         required=False,
-    ),
+    )
     parser.add_argument(
         "--logo-path",
         help="Path to a custom logo image file for the splash screen. Recommended dimensions ~ 500x500px",
         default=None,
         required=False,
-    ),
+    )
     parser.add_argument(
         "--show-overlay",
         action="store_true",
         help="Show overlay on top of video with pikaraoke QR code and IP",
         required=False,
-    ),
+    )
     parser.add_argument(
         "--admin-password",
         help="Administrator password, for locking down certain features of the web UI such as queue editing, player controls, song editing, and system shutdown. If unspecified, everyone is an admin.",
         default=None,
         required=False,
-    ),
+    )
     parser.add_argument(
         "--developer-mode",
         help="Run in flask developer mode. Only useful for tweaking the web UI in real time. Will disable the splash screen due to pygame main thread conflicts and may require FLASK_ENV=development env variable for full dev mode features.",
         action="store_true",
         required=False,
-    ),
+    )
     args = parser.parse_args()
 
-    if (args.admin_password):
+    if args.admin_password:
         admin_password = args.admin_password
 
     app.jinja_env.globals.update(filename_from_path=filename_from_path)
     app.jinja_env.globals.update(url_escape=quote)
 
-    # Handle OMX player if specified
-    if platform == "raspberry_pi" and args.use_omxplayer:
-        args.use_vlc = False
-    else:
-        args.use_vlc = True
-
     # check if required binaries exist
     if not os.path.isfile(args.youtubedl_path):
         print("Youtube-dl path not found! " + args.youtubedl_path)
         sys.exit(1)
-    if args.use_vlc and not os.path.isfile(args.vlc_path):
+    if not os.path.isfile(args.vlc_path):
         print("VLC path not found! " + args.vlc_path)
-        sys.exit(1)
-    if (
-        platform == "raspberry_pi"
-        and not args.use_vlc
-        and not os.path.isfile(args.omxplayer_path)
-    ):
-        print("omxplayer path not found! " + args.omxplayer_path)
         sys.exit(1)
 
     # setup/create download directory if necessary
@@ -804,19 +771,14 @@ if __name__ == "__main__":
     k = karaoke.Karaoke(
         port=args.port,
         download_path=dl_path,
-        omxplayer_path=args.omxplayer_path,
         youtubedl_path=args.youtubedl_path,
         splash_delay=args.splash_delay,
-        log_level=args.log_level,
         volume=args.volume,
         hide_ip=args.hide_ip,
         hide_raspiwifi_instructions=args.hide_raspiwifi_instructions,
         hide_splash_screen=args.hide_splash_screen,
-        omxplayer_adev=args.adev,
         dual_screen=args.dual_screen,
         high_quality=args.high_quality,
-        use_omxplayer=args.use_omxplayer,
-        use_vlc=args.use_vlc,
         vlc_path=args.vlc_path,
         vlc_port=args.vlc_port,
         logo_path=args.logo_path,
