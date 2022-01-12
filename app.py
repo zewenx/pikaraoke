@@ -66,7 +66,7 @@ def home():
         "home.html",
         site_title=site_name,
         title="Home",
-        show_transpose=k.use_vlc,
+        show_transpose=False,
         transpose_value=k.now_playing_transpose,
         admin=is_admin()
     )
