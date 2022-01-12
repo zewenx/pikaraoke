@@ -74,6 +74,7 @@ class VLCClient:
             "--no-embedded-video",
             "--no-keyboard-events",
             "--no-mouse-events",
+            "--no-interact",
             "--mouse-hide-timeout",
             "0",
             "--video-on-top",
@@ -91,11 +92,11 @@ class VLCClient:
         if self.qrcode and self.url:
             self.cmd_base += self.get_marquee_cmd()
 
-        logging.info("VLC command base: " + " ".join(self.cmd_base))
+        self.logger.info("VLC command base: " + " ".join(self.cmd_base))
 
         self.volume_offset = 10
         self.process = None
-    
+
     def get_marquee_cmd(self):
         return ["--sub-source", 'logo{file=%s,position=9,x=2,opacity=200}:marq{marquee="Pikaraoke - connect at: \n%s",position=9,x=38,color=0xFFFFFF,size=11,opacity=200}' % (self.qrcode, self.url)]
 
@@ -105,7 +106,7 @@ class VLCClient:
             shutil.rmtree(extracted_dir)
         with zipfile.ZipFile(file_path, 'r') as zip_ref:
             zip_ref.extractall(extracted_dir)
-        
+
         mp3_file = None
         cdg_file = None
         files = os.listdir(extracted_dir)
@@ -115,32 +116,32 @@ class VLCClient:
                 mp3_file = file
             elif ext.casefold() == ".cdg":
                 cdg_file = file
-        
+
         if (mp3_file is not None) and (cdg_file is not None):
-            if (os.path.splitext(mp3_file)[0] == os.path.splitext(cdg_file)[0] ):
+            if (os.path.splitext(mp3_file)[0] == os.path.splitext(cdg_file)[0]):
                 return os.path.join(extracted_dir, mp3_file)
             else:
                 raise Exception("Zipped .mp3 file did not have a matching .cdg file: " + files)
-        else: 
+        else:
             raise Exception("No .mp3 or .cdg was found in the zip file: " + file_path)
 
     def handle_mp3_cdg(self, file_path):
         f = os.path.splitext(os.path.basename(file_path))[0]
-        pattern= f +'.cdg'
+        pattern = f + '.cdg'
         rule = re.compile(re.escape(pattern), re.IGNORECASE)
-        p=os.path.dirname(file_path)       # get the path, not the filename
+        p = os.path.dirname(file_path)  # get the path, not the filename
         for n in os.listdir(p):
             if rule.match(n):
-                return(file_path)
-        if (1):
+                return file_path
+        if 1:
             # we didn't return, so always raise the exception: assert might work better?
             raise Exception("No matching .cdg file found for: " + file_path)
 
     def process_file(self, file_path):
         file_extension = os.path.splitext(file_path)[1]
-        if (file_extension.casefold() == ".zip"):
+        if file_extension.casefold() == ".zip":
             return self.handle_zipped_cdg(file_path)
-        elif (file_extension.casefold() == ".mp3"):
+        elif file_extension.casefold() == ".mp3":
             return self.handle_mp3_cdg(file_path)
         else:
             return file_path
