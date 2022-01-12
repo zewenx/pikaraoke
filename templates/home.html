@@ -138,14 +138,14 @@
         });
     </script>
 {% endblock %} {% block header %}
-    <h1>
+    <h3>
         {% block title %}Now Playing
             <img
                     class="playing_gif control-box"
                     width="40"
                     src="{{ url_for('static', filename='images/now-playing.png') }}"
             />{% endblock %}
-    </h1>
+    </h3>
 {% endblock %} {% block content %}
 
     <p class="is-size-4 has-text-warning" id="now-playing"></p>
@@ -157,21 +157,13 @@
 
     {% if admin %}
         <div class=" box control-box" style="max-width: 500px">
-            <h4>Player Control</h4>
-            <p class="is-size-3">
-                <a title="Restart Song" id="restart"><i class="icon icon-to-start"></i> </a
-                >&nbsp;&nbsp;
-                <a title="Play/Pause"><i id="pause-resume" class="icon icon-pause"></i> </a
-                >&nbsp;&nbsp;
-                <a title="Stop Current Song" id="skip"><i class="icon icon-to-end"></i> </a
-                >&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;
-                <span class="is-pulled-right">
-                  <a title="Volume Down" id="vol-down"><i class="icon icon-volume-down"></i></a>
-                  <a title="Volume Up" id="vol-up"><i class="icon icon-volume-up"></i> </a>
-                </span>
-                <br>
-                <button type="radio" id="switch_accompaniment">accompaniment</button>
-                <button type="radio" id="switch_vocal">vocal</button>
+            <p class="is-size-2">
+                <a title="Restart Song" id="restart"><i class="icon icon-to-start"></i> </a>&nbsp;&nbsp;
+                <a title="Play/Pause"><i id="pause-resume" class="icon icon-pause"></i> </a>&nbsp;&nbsp;
+                <a title="Stop Current Song" id="skip"><i class="icon icon-to-end"></i> </a>&nbsp;&nbsp;&nbsp;
+                <a title="Volume Down" id="vol-down" style="margin-right: 10px"><i class="icon icon-volume-down"></i></a>
+                <a title="Volume Up" id="vol-up" style="margin-right: 20px" ><i class="icon icon-volume-up"></i> </a>
+                <br/>
                 <a title="Fast rewind 7 seconds" id="fb"><i class="icon icon-left-circled"></i> </a>&nbsp;
                 <a title="Fast forward 7 seconds" id="ff"><i class="icon icon-right-circled"></i> </a>&nbsp;
                 <button id="switch_accompaniment" class="button button5">伴</button>
