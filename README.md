@@ -1,3 +1,8 @@
+# New Feature from this fork repo
+Build the project into one runnable file
+`pyinstaller --clean --win-private-assemblies -F app.spec`
+
+-------------------------
 # PiKaraoke
 
 PiKaraoke is a "KTV"-style karaoke song search and queueing system. It connects to your TV, and shows a QR code for computers and smartphones to connect to a web interface. From there, multiple users can seamlessly search your local track library, queue up songs, add an endless selection of new karaoke tracks from YouTube, and more. Works on Raspberry Pi, OSX, Windows, and Linux!
