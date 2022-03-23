@@ -9,9 +9,10 @@ from constants import *
 import shutil
 
 from subprocess import check_output
-from pathlib import Path
+from pathlib import Path, PosixPath
 
-import pygame
+from spleeter.__main__ import separate
+from spleeter.audio import Codec, STFTBackend
 import qrcode
 
 from lib import vlcclient
@@ -159,9 +160,6 @@ class Karaoke:
         else:
             self.vlcclient = vlcclient.VLCClient(port=self.vlc_port, path=self.vlc_path, logger=self.logger)
 
-        if not self.hide_splash_screen:
-            self.initialize_screen()
-            self.render_splash_screen()
 
     # Other ip-getting methods are unreliable and sometimes return 127.0.0.1
     # https://stackoverflow.com/a/28950776
@@ -245,154 +243,6 @@ class Karaoke:
         self.qr_code_path = os.path.join(self.base_path, "qrcode.png")
         img.save(self.qr_code_path)
 
-    def get_default_display_mode(self):
-        if self.platform == "raspberry_pi":
-            os.environ[
-                "SDL_VIDEO_CENTERED"
-            ] = "1"  # HACK apparently if display mode is fullscreen the vlc window will be at the bottom of pygame
-            return pygame.NOFRAME
-        else:
-            return pygame.FULLSCREEN
-
-
-    def initialize_screen(self):
-        if not self.hide_splash_screen:
-            self.logger.debug("Initializing pygame")
-            self.full_screen = True
-            pygame.display.init()
-            pygame.display.set_caption("pikaraoke")
-            pygame.font.init()
-            pygame.mouse.set_visible(0)
-            self.font = pygame.font.SysFont(pygame.font.get_default_font(), 40)
-            self.width = pygame.display.Info().current_w
-            self.height = pygame.display.Info().current_h
-            self.logger.debug("Initializing screen mode")
-
-            if self.platform == "windows":
-                self.screen = pygame.display.set_mode(
-                    [self.width, self.height], self.get_default_display_mode()
-                )
-            else:
-                # this section is an unbelievable nasty hack - for some reason Pygame
-                # needs a keyboardinterrupt to initialise in some limited circumstances
-                # source: https://stackoverflow.com/questions/17035699/pygame-requires-keyboard-interrupt-to-init-display
-                class Alarm(Exception):
-                    pass
-
-                def alarm_handler(signum, frame):
-                    raise Alarm
-
-                signal(SIGALRM, alarm_handler)
-                alarm(3)
-                try:
-                    self.screen = pygame.display.set_mode(
-                        [self.width, self.height], self.get_default_display_mode()
-                    )
-                    alarm(0)
-                except Alarm:
-                    raise KeyboardInterrupt
-            self.logger.debug("Done initializing splash screen")
-
-    def toggle_full_screen(self):
-        if not self.hide_splash_screen:
-            self.logger.debug("Toggling fullscreen...")
-            if self.full_screen:
-                self.screen = pygame.display.set_mode([1280, 720])
-                self.render_splash_screen()
-                self.full_screen = False
-            else:
-                self.screen = pygame.display.set_mode(
-                    [self.width, self.height], self.get_default_display_mode()
-                )
-                self.render_splash_screen()
-                self.full_screen = True
-
-    def render_splash_screen(self):
-        if not self.hide_splash_screen:
-            self.logger.debug("Rendering splash screen")
-
-            self.screen.fill((0, 0, 0))
-
-            logo = pygame.image.load(self.logo_path)
-            logo_rect = logo.get_rect(center=self.screen.get_rect().center)
-            self.screen.blit(logo, logo_rect)
-
-            blitY = self.screen.get_rect().bottomleft[1] - 40
-
-            if not self.hide_ip:
-                p_image = pygame.image.load(self.qr_code_path)
-                p_image = pygame.transform.scale(p_image, (150, 150))
-                self.screen.blit(p_image, (20, blitY - 125))
-                if not self.is_network_connected():
-                    text = self.font.render(
-                        "Wifi/Network not connected. Shutting down in 10s...",
-                        True,
-                        (255, 255, 255),
-                    )
-                    self.screen.blit(text, (p_image.get_width() + 35, blitY))
-                    time.sleep(10)
-                    self.logger.info(
-                        "No IP found. Network/Wifi configuration required. For wifi config, try: sudo raspi-config or the desktop GUI: startx"
-                    )
-                    self.stop()
-                else:
-                    text = self.font.render(
-                        "Connect at: " + self.url, True, (255, 255, 255)
-                    )
-                    self.screen.blit(text, (p_image.get_width() + 35, blitY))
-
-            if not self.hide_raspiwifi_instructions and (
-                    self.raspi_wifi_config_installed
-                    and self.raspi_wifi_config_ip in self.url
-            ):
-                (server_port, ssid_prefix, ssl_enabled) = self.get_raspi_wifi_conf_vals()
-
-                text1 = self.font.render(
-                    "RaspiWifiConfig setup mode detected!", True, (255, 255, 255)
-                )
-                text2 = self.font.render(
-                    "Connect another device/smartphone to the Wifi AP: '%s'" % ssid_prefix,
-                    True,
-                    (255, 255, 255),
-                )
-                text3 = self.font.render(
-                    "Then point its browser to: '%s://%s%s' and follow the instructions."
-                    % ("https" if ssl_enabled == "1" else "http",
-                       self.raspi_wifi_config_ip,
-                       ":%s" % server_port if server_port != "80" else ""),
-                    True,
-                    (255, 255, 255),
-                )
-                self.screen.blit(text1, (10, 10))
-                self.screen.blit(text2, (10, 50))
-                self.screen.blit(text3, (10, 90))
-
-    def render_next_song_to_splash_screen(self):
-        if not self.hide_splash_screen:
-            self.render_splash_screen()
-            if len(self.queue) >= 1:
-                self.logger.debug("Rendering next song to splash screen")
-                next_song = self.queue[0]["title"]
-                max_length = 60
-                if (len(next_song) > max_length):
-                    next_song = next_song[0:max_length] + "..."
-                next_user = self.queue[0]["user"]
-                font_next_song = pygame.font.SysFont(pygame.font.get_default_font(), 60)
-                text = font_next_song.render(
-                    "Up next: %s" % next_song, True, (0, 128, 0)
-                )
-                up_next = font_next_song.render("Up next:  ", True, (255, 255, 0))
-                font_user_name = pygame.font.SysFont(pygame.font.get_default_font(), 50)
-                user_name = font_user_name.render("Added by: %s " % next_user, True, (255, 120, 0))
-                x = self.width - text.get_width() - 10
-                y = 5
-                self.screen.blit(text, (x, y))
-                self.screen.blit(up_next, (x, y))
-                self.screen.blit(user_name, (self.width - user_name.get_width() - 10, y + 50))
-                return True
-            else:
-                self.logger.debug("Could not render next song to splash. No song in queue")
-                return False
 
     def get_search_results(self, textToSearch):
         self.logger.info("Searching YouTube for: " + textToSearch)
@@ -464,11 +314,20 @@ class Karaoke:
             print("Creating tmp path: " + tmp_path)
             os.makedirs(tmp_path)
 
+        split_result = 0
         # Split vocal and accompaniment
         # separate(files=[Path(file_path)],output_path=Path(tmp_dir), filename_format="{filename}_{instrument}.{codec}")
         cmd = ["spleeter", "separate", "-o", tmp_path, "-f", "{instrument}.{codec}", file_path]
-        rc = subprocess.call(cmd)
-        if rc == 0:
+        self.logger.info(str(cmd))
+        split_result = subprocess.call(cmd)
+
+        # try:
+        #     self.seperate_audio(file_path, tmp_path)
+        # except Exception as e:
+        #     self.logger.error('Split audio failed due to %s' % e)
+        #     split_result = 1
+
+        if split_result == 0:
             # Split video and audio
             s_cmd = ["ffmpeg", "-i", file_path, "-an", "-c", "copy", f"{tmp_path}/video.mp4"]
             split_rs = subprocess.call(s_cmd)
@@ -478,9 +337,26 @@ class Karaoke:
             merge_rs = subprocess.call(m_cmd)
 
             os.rename(file_path, vocal_path)
-
+            self.logger.info('Spleeter song succeed!')
             shutil.rmtree(tmp_path, ignore_errors=True)
         return accompaniment_path
+
+    def seperate_audio(self, file_path, output_path):
+        separate(
+            deprecated_files=None,
+            files=[PosixPath(os.path.abspath(file_path))],
+            adapter='spleeter.audio.ffmpeg.FFMPEGProcessAudioAdapter',
+            bitrate='128k',
+            codec=Codec.WAV,
+            duration=600.0,
+            offset=0.0,
+            output_path=PosixPath(os.path.abspath(output_path)),
+            stft_backend=STFTBackend.AUTO,
+            filename_format="{instrument}.{codec}",
+            params_filename='spleeter:2stems',
+            mwf=False,
+            verbose=False
+        )
 
     def get_available_songs(self):
         self.logger.info("Fetching available songs in: " + self.download_path)
@@ -558,7 +434,6 @@ class Karaoke:
         if self.vlcclient:
             self.vlcclient.kill()
 
-
     def play_file(self, file_path, semitones=0):
         self.now_playing = self.filename_from_path(file_path)
         self.now_playing_filename = file_path
@@ -570,7 +445,6 @@ class Karaoke:
             self.vlcclient.play_file_transpose(file_path, semitones)
 
         self.is_paused = False
-        self.render_splash_screen()  # remove old previous track
 
     def transpose_current(self, semitones):
         self.logger.info("Transposing song by %s semitones" % semitones)
@@ -583,7 +457,6 @@ class Karaoke:
         else:
             self.now_playing = None
             return False
-
 
     def is_song_in_queue(self, song_path):
         for each in self.queue:
@@ -733,33 +606,7 @@ class Karaoke:
         self.running = False
 
     def handle_run_loop(self):
-        if self.hide_splash_screen:
-            time.sleep(self.loop_interval / 1000)
-        else:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.logger.warn("Window closed: Exiting pikaraoke...")
-                    self.running = False
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        self.logger.warn("ESC pressed: Exiting pikaraoke...")
-                        self.running = False
-                    if event.key == pygame.K_f:
-                        self.toggle_full_screen()
-            pygame.display.update()
-            pygame.time.wait(self.loop_interval)
-
-
-    # Use this to reset the screen in case it loses focus
-    # This seems to occur in windows after playing a video
-    def pygame_reset_screen(self):
-        if self.hide_splash_screen:
-            pass
-        else:
-            self.logger.debug("Resetting pygame screen...")
-            pygame.display.quit()
-            self.initialize_screen()
-            self.render_splash_screen()
+        time.sleep(self.loop_interval / 1000)
 
     def reset_now_playing(self):
         self.now_playing = None
@@ -778,9 +625,7 @@ class Karaoke:
                 if len(self.queue) > 0:
                     if not self.is_file_playing():
                         self.reset_now_playing()
-                        if not pygame.display.get_active():
-                            self.pygame_reset_screen()
-                        self.render_next_song_to_splash_screen()
+
                         # i = 0
                         # while i < (self.splash_delay * 1000):
                         self.handle_run_loop()
@@ -788,8 +633,6 @@ class Karaoke:
                         self.play_file(self.queue[0]["file"])
                         self.now_playing_user = self.queue[0]["user"]
                         self.queue.pop(0)
-                elif not pygame.display.get_active() and not self.is_file_playing():
-                    self.pygame_reset_screen()
                 self.handle_run_loop()
 
             except KeyboardInterrupt:
