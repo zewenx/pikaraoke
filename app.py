@@ -602,20 +602,12 @@ def get_default_youtube_dl_path(platform):
         return "/usr/local/bin/youtube-dl"
 
 def get_default_dl_dir(platform):
-    if platform == "raspberry_pi":
-        return "/usr/lib/pikaraoke/songs"
-    elif platform == "windows":
-        legacy_directory = os.path.expanduser("~\pikaraoke\songs")
-        if os.path.exists(legacy_directory):
-            return legacy_directory
-        else:
-            return "~\pikaraoke-songs"
-    else:
-        legacy_directory = "~/pikaraoke/songs"
-        if os.path.exists(legacy_directory):
-            return legacy_directory
-        else:
-            return "~/pikaraoke-songs"
+    legacy_directory = "~/ktv-songs"
+    legacy_directory = os.path.expanduser(legacy_directory)
+    if not os.path.exists(legacy_directory):
+        os.makedirs(legacy_directory)
+
+    return legacy_directory
 
 
 if __name__ == "__main__":
