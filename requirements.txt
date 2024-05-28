@@ -5,9 +5,10 @@ six
 Flask
 pillow
 qrcode
-psutil 
 unidecode
 requests
 flask-paginate==2021.10.29
-spleeter==2.3.0
 librosa
+spleeter==2.3.2
+git+https://github.com/ytdl-org/youtube-dl.git@master#egg=youtube_dl
+zhconv

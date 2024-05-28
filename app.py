@@ -12,7 +12,6 @@ from functools import wraps
 from constants import *
 
 import cherrypy
-import psutil
 from flask import (Flask, flash, jsonify, make_response, redirect,
                    render_template, request, send_file, send_from_directory,
                    url_for)
@@ -447,36 +446,6 @@ def edit_file():
 def info():
     url = "http://" + request.host
 
-    # cpu
-    cpu = str(psutil.cpu_percent()) + "%"
-
-    # mem
-    memory = psutil.virtual_memory()
-    available = round(memory.available / 1024.0 / 1024.0, 1)
-    total = round(memory.total / 1024.0 / 1024.0, 1)
-    memory = (
-        str(available)
-        + "MB free / "
-        + str(total)
-        + "MB total ( "
-        + str(memory.percent)
-        + "% )"
-    )
-
-    # disk
-    disk = psutil.disk_usage("/")
-    # Divide from Bytes -> KB -> MB -> GB
-    free = round(disk.free / 1024.0 / 1024.0 / 1024.0, 1)
-    total = round(disk.total / 1024.0 / 1024.0 / 1024.0, 1)
-    disk = (
-        str(free)
-        + "GB free / "
-        + str(total)
-        + "GB total ( "
-        + str(disk.percent)
-        + "% )"
-    )
-
     # youtube-dl
     youtubedl_version = k.youtubedl_version
 
@@ -487,9 +456,9 @@ def info():
         site_title=site_name,
         title="Info",
         url=url,
-        memory=memory,
-        cpu=cpu,
-        disk=disk,
+        memory=0,
+        cpu=0,
+        disk=0,
         youtubedl_version=youtubedl_version,
         is_pi=is_pi,
         pikaraoke_version=VERSION,
@@ -599,7 +568,7 @@ def get_default_youtube_dl_path(platform):
             return scoop_ytdl_path
         return r"C:\Program Files\youtube-dl\youtube-dl.exe"
     else:
-        return "/usr/local/bin/youtube-dl"
+        return "/Users/francis/code/pikaraoke/Env/bin/youtube-dl"
 
 def get_default_dl_dir(platform):
     legacy_directory = "~/ktv-songs"
@@ -614,7 +583,7 @@ if __name__ == "__main__":
     os.environ["MODEL_PATH"] = f"{os.path.dirname(os.path.abspath(__file__))}/pretrained_models"
 
     platform = get_platform()
-    default_port = 5000
+    default_port = 6000
     default_volume = 0
     default_splash_delay = 5
     default_log_level = logging.INFO

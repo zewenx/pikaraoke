@@ -55,7 +55,7 @@ class Karaoke:
             high_quality=False,
             volume=0,
             splash_delay=2,
-            youtubedl_path="/usr/local/bin/youtube-dl",
+            youtubedl_path="/Users/francis/code/pikaraoke/Env/bin/youtube-dl",
             omxplayer_path=None,
             use_omxplayer=False,
             vlc_path=None,
